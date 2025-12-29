@@ -1,17 +1,15 @@
 from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
-from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 from slugify import slugify
-import os
+from contextlib import asynccontextmanager
 
-# Настройка базы данных (SQLite в памяти для простоты)
+# Настройка базы данных
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-# SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"  # Для тестирования в памяти
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
@@ -43,9 +41,6 @@ class Post(Base):
     
     category = relationship("Category", back_populates="posts")
 
-# Создание таблиц
-Base.metadata.create_all(bind=engine)
-
 # Pydantic модели
 class CategoryBase(BaseModel):
     name: str
@@ -58,8 +53,7 @@ class CategoryResponse(CategoryBase):
     created_at: datetime
     posts_count: int = 0
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PostBase(BaseModel):
     name: str
@@ -76,22 +70,84 @@ class PostUpdate(BaseModel):
     image_url: Optional[str] = None
     category_id: Optional[int] = None
 
-class PostResponse(PostBase):
+# Важная модель для ответа
+class PostResponse(BaseModel):
     id: int
+    name: str
+    content: str
+    image_url: Optional[str] = None
+    category_id: int
     slug: str
     created_at: datetime
-    category: Optional[CategoryResponse] = None
+    category: Optional[CategoryBase] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+# Функции для жизненного цикла
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # При запуске
+    Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    try:
+        # Создаем тестовые категории, если их нет
+        if db.query(Category).count() == 0:
+            categories = [
+                Category(name="Программирование"),
+                Category(name="Дизайн"),
+                Category(name="Маркетинг"),
+                Category(name="Образование"),
+                Category(name="Новости"),
+            ]
+            
+            for category in categories:
+                db.add(category)
+            
+            db.commit()
+            
+            # Создаем тестовые посты
+            programming_category = db.query(Category).filter(Category.name == "Программирование").first()
+            
+            if programming_category:
+                posts = [
+                    Post(
+                        name="Введение в Vue.js",
+                        slug="vvedenie-v-vue-js",
+                        content="Vue.js - это прогрессивный фреймворк для создания пользовательских интерфейсов.",
+                        image_url="https://vuejs.org/images/logo.png",
+                        category_id=programming_category.id
+                    ),
+                    Post(
+                        name="React vs Vue: что выбрать?",
+                        slug="react-vs-vue-chto-vybrat",
+                        content="Сравнение двух популярных фреймворков для фронтенд-разработки.",
+                        image_url="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg",
+                        category_id=programming_category.id
+                    ),
+                ]
+                
+                for post in posts:
+                    db.add(post)
+                
+                db.commit()
+            else:
+                print("Категория 'Программирование' не найдена для создания тестовых постов")
+    finally:
+        db.close()
+    
+    yield
+    
+    # При завершении
+    # Можно добавить логику очистки при необходимости
 
 # FastAPI приложение
-app = FastAPI(title="Blog API", version="1.0.0")
+app = FastAPI(title="Blog API", version="1.0.0", lifespan=lifespan)
 
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Vue dev server
+    allow_origins=["*"],  # Разрешить все источники для разработки
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -128,11 +184,14 @@ async def root():
 def get_categories(db: Session = Depends(get_db)):
     categories = db.query(Category).all()
     
-    # Добавляем количество постов для каждой категории
     result = []
     for category in categories:
-        category_dict = CategoryResponse.from_orm(category).dict()
-        category_dict['posts_count'] = len(category.posts)
+        category_dict = {
+            "id": category.id,
+            "name": category.name,
+            "created_at": category.created_at,
+            "posts_count": len(category.posts)
+        }
         result.append(category_dict)
     
     return result
@@ -143,10 +202,12 @@ def get_category(category_id: int, db: Session = Depends(get_db)):
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     
-    category_dict = CategoryResponse.from_orm(category).dict()
-    category_dict['posts_count'] = len(category.posts)
-    
-    return category_dict
+    return {
+        "id": category.id,
+        "name": category.name,
+        "created_at": category.created_at,
+        "posts_count": len(category.posts)
+    }
 
 @app.post("/categories", response_model=CategoryResponse)
 def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
@@ -155,15 +216,17 @@ def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
     if db_category:
         raise HTTPException(status_code=400, detail="Category with this name already exists")
     
-    db_category = Category(**category.dict())
+    db_category = Category(name=category.name)
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
     
-    category_dict = CategoryResponse.from_orm(db_category).dict()
-    category_dict['posts_count'] = 0
-    
-    return category_dict
+    return {
+        "id": db_category.id,
+        "name": db_category.name,
+        "created_at": db_category.created_at,
+        "posts_count": 0
+    }
 
 @app.put("/categories/{category_id}", response_model=CategoryResponse)
 def update_category(category_id: int, category: CategoryCreate, db: Session = Depends(get_db)):
@@ -179,14 +242,16 @@ def update_category(category_id: int, category: CategoryCreate, db: Session = De
     if existing_category:
         raise HTTPException(status_code=400, detail="Category with this name already exists")
     
-    db_category.name = category.name
+    db_category.name = category.name # pyright: ignore[reportAttributeAccessIssue]
     db.commit()
     db.refresh(db_category)
     
-    category_dict = CategoryResponse.from_orm(db_category).dict()
-    category_dict['posts_count'] = len(db_category.posts)
-    
-    return category_dict
+    return {
+        "id": db_category.id,
+        "name": db_category.name,
+        "created_at": db_category.created_at,
+        "posts_count": len(db_category.posts)
+    }
 
 @app.delete("/categories/{category_id}")
 def delete_category(category_id: int, db: Session = Depends(get_db)):
@@ -218,14 +283,53 @@ def get_posts(
         query = query.filter(Post.name.ilike(f"%{search}%"))
     
     posts = query.order_by(Post.created_at.desc()).all()
-    return posts
+    
+    # Создаем response
+    result = []
+    for post in posts:
+        post_dict = {
+            "id": post.id,
+            "name": post.name,
+            "content": post.content,
+            "image_url": post.image_url,
+            "category_id": post.category_id,
+            "slug": post.slug,
+            "created_at": post.created_at,
+            "category": None
+        }
+        
+        if post.category:
+            post_dict["category"] = {
+                "name": post.category.name
+            }
+        
+        result.append(post_dict)
+    
+    return result
 
 @app.get("/posts/{slug}", response_model=PostResponse)
 def get_post(slug: str, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.slug == slug).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    return post
+    
+    post_dict = {
+        "id": post.id,
+        "name": post.name,
+        "content": post.content,
+        "image_url": post.image_url,
+        "category_id": post.category_id,
+        "slug": post.slug,
+        "created_at": post.created_at,
+        "category": None
+    }
+    
+    if post.category:
+        post_dict["category"] = {
+            "name": post.category.name
+        }
+    
+    return post_dict
 
 @app.post("/posts", response_model=PostResponse)
 def create_post(post: PostCreate, db: Session = Depends(get_db)):
@@ -238,14 +342,31 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     slug = generate_slug(post.name, db)
     
     db_post = Post(
-        **post.dict(),
+        name=post.name,
+        content=post.content,
+        image_url=post.image_url,
+        category_id=post.category_id,
         slug=slug
     )
     
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
-    return db_post
+    
+    post_dict = {
+        "id": db_post.id,
+        "name": db_post.name,
+        "content": db_post.content,
+        "image_url": db_post.image_url,
+        "category_id": db_post.category_id,
+        "slug": db_post.slug,
+        "created_at": db_post.created_at,
+        "category": {
+            "name": category.name
+        }
+    }
+    
+    return post_dict
 
 @app.put("/posts/{slug}", response_model=PostResponse)
 def update_post(slug: str, post: PostUpdate, db: Session = Depends(get_db)):
@@ -260,18 +381,42 @@ def update_post(slug: str, post: PostUpdate, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Category not found")
     
     # Обновляем поля
-    update_data = post.dict(exclude_unset=True)
+    if post.name is not None and post.name != db_post.name:
+        db_post.name = post.name # pyright: ignore[reportAttributeAccessIssue]
+        db_post.slug = generate_slug(post.name, db) # pyright: ignore[reportAttributeAccessIssue]
     
-    # Если изменяется имя, обновляем slug
-    if 'name' in update_data and update_data['name'] != db_post.name:
-        update_data['slug'] = generate_slug(update_data['name'], db)
+    if post.content is not None:
+        db_post.content = post.content # pyright: ignore[reportAttributeAccessIssue]
     
-    for field, value in update_data.items():
-        setattr(db_post, field, value)
+    if post.image_url is not None:
+        db_post.image_url = post.image_url # pyright: ignore[reportAttributeAccessIssue]
+    
+    if post.category_id is not None:
+        db_post.category_id = post.category_id # pyright: ignore[reportAttributeAccessIssue]
     
     db.commit()
     db.refresh(db_post)
-    return db_post
+    
+    # Получаем актуальную категорию
+    category = db.query(Category).filter(Category.id == db_post.category_id).first()
+    
+    post_dict = {
+        "id": db_post.id,
+        "name": db_post.name,
+        "content": db_post.content,
+        "image_url": db_post.image_url,
+        "category_id": db_post.category_id,
+        "slug": db_post.slug,
+        "created_at": db_post.created_at,
+        "category": None
+    }
+    
+    if category:
+        post_dict["category"] = {
+            "name": category.name
+        }
+    
+    return post_dict
 
 @app.delete("/posts/{slug}")
 def delete_post(slug: str, db: Session = Depends(get_db)):
@@ -284,53 +429,11 @@ def delete_post(slug: str, db: Session = Depends(get_db)):
     
     return {"message": "Post deleted successfully"}
 
-# Добавим некоторые начальные данные
-@app.on_event("startup")
-def startup_event():
-    db = SessionLocal()
-    
-    # Создаем тестовые категории, если их нет
-    if db.query(Category).count() == 0:
-        categories = [
-            Category(name="Программирование"),
-            Category(name="Дизайн"),
-            Category(name="Маркетинг"),
-            Category(name="Образование"),
-            Category(name="Новости"),
-        ]
-        
-        for category in categories:
-            db.add(category)
-        
-        db.commit()
-        
-        # Создаем тестовые посты
-        programming_category = db.query(Category).filter(Category.name == "Программирование").first()
-        
-        posts = [
-            Post(
-                name="Введение в Vue.js",
-                slug="vvedenie-v-vue-js",
-                content="Vue.js - это прогрессивный фреймворк для создания пользовательских интерфейсов.",
-                image_url="https://vuejs.org/images/logo.png",
-                category_id=programming_category.id
-            ),
-            Post(
-                name="React vs Vue: что выбрать?",
-                slug="react-vs-vue-chto-vybrat",
-                content="Сравнение двух популярных фреймворков для фронтенд-разработки.",
-                image_url="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg",
-                category_id=programming_category.id
-            ),
-        ]
-        
-        for post in posts:
-            db.add(post)
-        
-        db.commit()
-    
-    db.close()
+# Endpoint для проверки CORS
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

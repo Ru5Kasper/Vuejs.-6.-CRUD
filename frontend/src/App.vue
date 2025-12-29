@@ -8,7 +8,7 @@
             <div class="flex-shrink-0">
               <h1 class="text-xl font-bold text-indigo-600">Blog Admin</h1>
             </div>
-            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div class="sm:ml-6 sm:flex sm:space-x-8">
               <router-link
                 :to="{ name: 'posts' }"
                 :class="[
@@ -33,7 +33,7 @@
               </router-link>
             </div>
           </div>
-          <div class="hidden sm:ml-6 sm:flex sm:items-center">
+          <div class="sm:ml-6 sm:flex sm:items-center">
             <span class="text-sm text-gray-500">Админ-панель</span>
           </div>
         </div>

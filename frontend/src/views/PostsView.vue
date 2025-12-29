@@ -10,9 +10,6 @@
         :to="{ name: 'post-create' }"
         class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out"
       >
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-        </svg>
         Создать пост
       </router-link>
     </div>
@@ -38,13 +35,7 @@
     <!-- Таблица постов -->
     <div class="bg-white shadow overflow-hidden sm:rounded-lg">
       <div v-if="isLoading" class="p-8 text-center">
-        <div class="inline-flex items-center">
-          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span class="text-gray-600">Загрузка постов...</span>
-        </div>
+        <span class="text-gray-600">Загрузка постов...</span>
       </div>
 
       <div v-else-if="error" class="p-8 text-center">
@@ -203,19 +194,9 @@
             </button>
             <button
               @click="confirmDelete"
-              :disabled="isDeleting"
-              class="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+              class="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out"
             >
-              <span v-if="isDeleting">
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Удаление...
-              </span>
-              <span v-else>
-                Удалить
-              </span>
+              Удалить
             </button>
           </div>
         </div>
@@ -225,7 +206,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -259,18 +240,13 @@ const {
 // Удаление поста
 const showDeleteModal = ref(false)
 const postToDelete = ref(null)
-const isDeleting = ref(false)
 
 const deleteMutation = useMutation({
   mutationFn: (slug) => postsApi.deletePost(slug),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['posts'] })
     showDeleteModal.value = false
-    isDeleting.value = false
     postToDelete.value = null
-  },
-  onError: () => {
-    isDeleting.value = false
   }
 })
 
@@ -281,7 +257,6 @@ const handleDelete = (post) => {
 
 const confirmDelete = () => {
   if (postToDelete.value) {
-    isDeleting.value = true
     deleteMutation.mutate(postToDelete.value.slug)
   }
 }

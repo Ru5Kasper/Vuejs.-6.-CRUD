@@ -26,7 +26,6 @@
                   id="category-name"
                   v-model="formData.name"
                   required
-                  :disabled="isLoading"
                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150 ease-in-out"
                   placeholder="Введите название категории"
                 />
@@ -38,26 +37,15 @@
               <div class="flex space-x-3">
                 <button
                   type="submit"
-                  :disabled="isLoading"
-                  class="flex-1 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+                  class="flex-1 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out"
                 >
-                  <svg 
-                    v-if="isLoading" 
-                    class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" 
-                    fill="none" 
-                    viewBox="0 0 24 24"
-                  >
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>{{ editingCategory ? 'Обновить категорию' : 'Создать категорию' }}</span>
+                  {{ editingCategory ? 'Обновить категорию' : 'Создать категорию' }}
                 </button>
                 
                 <button
                   v-if="editingCategory"
                   type="button"
                   @click="cancelEdit"
-                  :disabled="isLoading"
                   class="flex-1 inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out"
                 >
                   Отмена
@@ -93,17 +81,7 @@
               Список категорий
             </h3>
 
-            <div v-if="isLoadingCategories" class="text-center py-8">
-              <div class="inline-flex items-center">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span class="text-gray-600">Загрузка категорий...</span>
-              </div>
-            </div>
-
-            <div v-else-if="!categories || categories.length === 0" class="text-center py-8">
+            <div v-if="!categories || categories.length === 0" class="text-center py-8">
               <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
               </svg>
@@ -223,19 +201,10 @@
             </button>
             <button
               @click="confirmDelete"
-              :disabled="(showPhraseConfirmation && phraseInput !== randomPhrase) || isDeleting"
+              :disabled="showPhraseConfirmation && phraseInput !== randomPhrase"
               class="flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
             >
-              <span v-if="isDeleting">
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Удаление...
-              </span>
-              <span v-else>
-                {{ showPhraseConfirmation ? 'Удалить всё' : 'Удалить' }}
-              </span>
+              {{ showPhraseConfirmation ? 'Удалить всё' : 'Удалить' }}
             </button>
           </div>
         </div>
@@ -245,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { categoriesApi } from '@/api/categories'
 
@@ -266,7 +235,7 @@ watch(editingCategory, (newVal) => {
 })
 
 // Список категорий
-const { data: categories, isLoading: isLoadingCategories } = useQuery({
+const { data: categories } = useQuery({
   queryKey: ['categories'],
   queryFn: () => categoriesApi.getCategories().then(res => res.data)
 })
@@ -301,7 +270,6 @@ const categoryToDelete = ref(null)
 const randomPhrase = ref('')
 const phraseInput = ref('')
 const phraseError = ref('')
-const isDeleting = ref(false)
 
 const deleteMutation = useMutation({
   mutationFn: (id) => categoriesApi.deleteCategory(id),
@@ -311,11 +279,9 @@ const deleteMutation = useMutation({
     categoryToDelete.value = null
     phraseInput.value = ''
     randomPhrase.value = ''
-    isDeleting.value = false
   },
   onError: (error) => {
     phraseError.value = error.response?.data?.detail || 'Ошибка при удалении категории'
-    isDeleting.value = false
   }
 })
 
@@ -371,9 +337,9 @@ const confirmDelete = () => {
   }
   
   if (categoryToDelete.value) {
-    isDeleting.value = true
     deleteMutation.mutate(categoryToDelete.value.id)
   }
+  showDeleteModal.value = false
 }
 
 const cancelDelete = () => {
@@ -383,7 +349,6 @@ const cancelDelete = () => {
   randomPhrase.value = ''
   phraseError.value = ''
   showPhraseConfirmation.value = false
-  isDeleting.value = false
 }
 
 // Вспомогательные функции
@@ -402,8 +367,4 @@ const formatDate = (dateString) => {
     year: 'numeric'
   })
 }
-
-const isLoading = computed(() => {
-  return createMutation.isPending || updateMutation.isPending
-})
 </script>
