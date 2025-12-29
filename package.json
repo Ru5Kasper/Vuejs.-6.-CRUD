@@ -13,11 +13,20 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "@regle/core": "^1.14.7",
+    "@regle/rules": "^1.14.7",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tanstack/vue-query": "^5.92.3",
+    "@vueuse/core": "^14.1.0",
+    "axios": "^1.13.2",
     "vue": "^3.5.26"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.3",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
     "prettier": "3.7.4",
+    "tailwindcss": "^4.1.18",
     "vite": "^7.3.0",
     "vite-plugin-vue-devtools": "^8.0.5"
   }
