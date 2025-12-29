@@ -55,7 +55,7 @@
     <footer class="bg-white shadow-lg mt-8">
       <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
         <div class="text-center text-sm text-gray-500">
-          © 2024 Blog Admin Panel. Все права защищены.
+          © 2026 Blog Admin Panel. Все права защищены.
         </div>
       </div>
     </footer>

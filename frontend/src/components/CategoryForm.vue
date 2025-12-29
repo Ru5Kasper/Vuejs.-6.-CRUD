@@ -14,26 +14,20 @@
 
     <button
       type="submit"
-      :disabled="isLoading"
-      class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+      class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
     >
-      <span v-if="isLoading">Сохранение...</span>
-      <span v-else>{{ submitText }}</span>
+      {{ submitText }}
     </button>
   </form>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
   initialData: {
     type: Object,
     default: () => ({ name: '' }),
-  },
-  isLoading: {
-    type: Boolean,
-    default: false,
   },
   error: {
     type: String,

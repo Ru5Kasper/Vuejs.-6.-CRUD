@@ -233,9 +233,10 @@ watch(post, (newPost) => {
 // Мутации
 const createMutation = useMutation({
   mutationFn: (postData) => postsApi.createPost(postData),
-  onSuccess: (data) => {
+  onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['posts'] })
-    router.push({ name: 'post-edit', params: { slug: data.data.slug } })
+    // Перенаправляем на список постов после создания
+    router.push({ name: 'posts' })
   }
 })
 
@@ -244,6 +245,8 @@ const updateMutation = useMutation({
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['posts'] })
     queryClient.invalidateQueries({ queryKey: ['post', slug] })
+    // После обновления тоже можно перенаправить на список постов
+    router.push({ name: 'posts' })
   }
 })
 
